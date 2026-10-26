@@ -37,9 +37,10 @@ def turkce_ayarla() -> None:
 def kod_blogunu_temizle(metin: str) -> str:
     """Model SQL'i Markdown kod bloğunda döndürürse blok işaretlerini kaldırır."""
     metin = metin.strip()
-    if metin.startswith("\`\`\`"):
+    kod_blogu_isareti = chr(96) * 3
+    if metin.startswith(kod_blogu_isareti):
         satirlar = metin.splitlines()[1:]
-        if satirlar and satirlar[-1].strip() == "\`\`\`":
+        if satirlar and satirlar[-1].strip() == kod_blogu_isareti:
             satirlar = satirlar[:-1]
         metin = "\n".join(satirlar).strip()
     return metin
