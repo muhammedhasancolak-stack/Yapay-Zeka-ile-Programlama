@@ -190,8 +190,72 @@ def urun_yazdir(urun):
     print(f"SEO       : {urun['seo_etiketleri']}")
 
 
+
 # ----------------------------------------------------------------------
-# 3) MENÜ İŞLEMLERİ
+# 3) DOĞAL DİLDEN SQL ÜRETİMİ
+# ----------------------------------------------------------------------
+
+def sql_sorgusu_uret():
+    """Kullanıcının doğal dildeki talebini Gemini ile PostgreSQL'e çevirir."""
+    talep = input("\nSQL talebinizi yazın: ").strip()
+    if not talep:
+        print("[HATA] SQL talebi boş olamaz.")
+        return
+
+    sema = """
+    Musteriler Tablosu: musteri_id, ad_soyad, eposta, sehir
+    Siparisler Tablosu: siparis_id, musteri_id, tutar, siparis_tarihi
+    """
+
+    istem = f"""
+    Sen PostgreSQL bilen bir SQL asistanısın.
+
+    Veritabanı şeması:
+    {sema}
+
+    Kullanıcı talebi:
+    {talep}
+
+    Sadece tek bir PostgreSQL SELECT sorgusu döndür.
+    Açıklama veya Markdown kod bloğu kullanma.
+    Müşteriler için m, siparişler için s takma adını kullan.
+    Toplam harcama gerekiyorsa SUM(s.tutar) AS toplam_harcama yaz.
+    """
+
+    api_anahtari = os.getenv("GEMINI_API_KEY") or API_ANAHTARI
+    print("\nGemini isteği gönderiliyor...")
+
+    try:
+        client = genai.Client(api_key=api_anahtari)
+        yanit = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=istem,
+        )
+        sql = (yanit.text or "").strip()
+
+        # Model yanıtı Markdown kod bloğunda verirse temizle.
+        kod_blogu = chr(96) * 3
+        if sql.startswith(kod_blogu):
+            satirlar = sql.splitlines()[1:]
+            if satirlar and satirlar[-1].strip() == kod_blogu:
+                satirlar = satirlar[:-1]
+            sql = "\n".join(satirlar).strip()
+
+        if not sql.upper().startswith("SELECT"):
+            raise ValueError("Gemini geçerli bir SELECT sorgusu üretmedi.")
+
+        print("Gemini yanıtı alındı!")
+        print("=" * 72)
+        print("                        ÜRETİLEN SQL SORGUSU")
+        print("=" * 72)
+        print(sql)
+        print("=" * 72)
+    except Exception as e:
+        print(f"[SQL HATASI] {e}")
+
+
+# ----------------------------------------------------------------------
+# 4) MENÜ İŞLEMLERİ
 # ----------------------------------------------------------------------
 def menu_goster():
     print("\n========== E-TİCARET YÖNETİM PANELİ ==========")
@@ -200,6 +264,7 @@ def menu_goster():
     print("3 - Ürün Ara")
     print("4 - Stok Güncelle")
     print("5 - Çıkış")
+    print("6 - Doğal Dilden SQL Sorgusu Üret")
 
 
 def urun_ekle(urunler):
@@ -321,8 +386,10 @@ def main():
         elif secim == "5":
             print("Programdan çıkılıyor. Görüşmek üzere!")
             break
+        elif secim == "6":
+            sql_sorgusu_uret()
         else:
-            print("[HATA] Geçersiz seçim. Lütfen 1-5 arasında bir sayı girin.")
+            print("[HATA] Geçersiz seçim. Lütfen 1-6 arasında bir sayı girin.")
 
 
 if __name__ == "__main__":
