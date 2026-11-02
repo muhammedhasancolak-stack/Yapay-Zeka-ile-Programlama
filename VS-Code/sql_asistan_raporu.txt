@@ -1,0 +1,15 @@
+AKILLI SQL ASİSTANI PERFORMANS VE GÜVENLİK RAPORU
+--------------------------------------------------
+Çalıştırma Tarihi : 2026-11-02
+Veritabanı Hacmi : 1.000 Müşteri / 1.000 Sipariş
+Toplam Test Talebi : 0
+Başarılı İcra : 0
+Engellenen Saldırı : 0
+Hata Düzeltme Sayısı : 0
+
+TEST DETAYLARI:
+Henüz test çalıştırılmadı.
+
+KISA YORUM VE DEĞERLENDİRME:
+Süreler, API yanıtı ve SQLite sorgu icrasını birlikte ölçer.
+Yasaklı komutlar veritabanına gönderilmeden güvenlik katmanında engellenir.
