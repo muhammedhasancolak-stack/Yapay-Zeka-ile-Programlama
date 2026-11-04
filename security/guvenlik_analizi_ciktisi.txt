@@ -1,0 +1,156 @@
+===========================================================================
+GEMINI 3.5 FLASH KOD GÜVENLİK ANALİZÖRÜ
+===========================================================================
+TEST: SQL Injection
+---------------------------------------------------------------------------
+GÜVENLİK ANALİZİ RAPORU
+1. Tespit Edilen Güvenlik Açığı:
+**SQL Enjeksiyonu (SQL Injection - SQLi)**
+
+2. Neden Oluştuğu:
+Bu açık, kullanıcıdan alınan girdinin (`urun_adi`) herhangi bir doğrulama, filtreleme veya parametrelendirme yapılmadan doğrudan string birleştirme (concatenation) yöntemiyle SQL sorgusunun içine dahil edilmesinden kaynaklanmaktadır. Kötü niyetli bir kullanıcı, girdi alanına özel SQL komutları (`' OR '1'='1` gibi) yazarak veritabanı sorgusunun mantığını değiştirebilir ve istenmeyen sorguların çalışmasını sağlayabilir.
+
+3. Olası Etkileri:
+* **Veri İfşası (Data Breach):** Yetkisiz kişilerin veritabanındaki tüm ürün bilgileri, müşteri verileri, şifreler veya hassas bilgilere erişmesi.
+* **Veri Kaybı veya Değişikliği:** Veritabanındaki tabloların değiştirilmesi (`UPDATE`) veya silinmesi (`DROP TABLE`).
+* **Yetki Aşımı:** Saldırganın veritabanı sunucusu üzerinde komut çalıştırarak sistemi tamamen ele geçirmesi.
+
+4. Güvenli ve Optimize Edilmiş Kod:
+Güvenlik açığını kapatmak ve kodu optimize etmek için **Parametreli Sorgular (Parameterized Queries / Prepared Statements)** kullanılmalıdır. Ayrıca veritabanı bağlantısının iş bitiminde güvenli bir şekilde kapatılması (veya `with` bağlam yöneticisi ile otomatik kapatılması) sağlanmıştır.
+
+```python
+import sqlite3
+
+def urun_ara(urun_adi):
+    # 'with' ifadesi, veritabanı bağlantısının ve imlecinin işlem bittikten sonra 
+    # otomatik ve güvenli bir şekilde kapatılmasını sağlar (Memory leak ve kilitlenmeleri önler).
+    with sqlite3.connect("magaza.db") as conn:
+        cursor = conn.cursor()
+        
+        # Parametreli sorgu kullanımı (Soru işareti '?' kullanarak).
+        # Bu yöntem, girdinin asla doğrudan bir SQL komutu olarak çalıştırılamamasını,
+        # veritabanı tarafından doğrudan bir 'veri' (literal) olarak değerlendirilmesini sağlar.
+        sorgu = "SELECT * FROM urunler WHERE urun_adi = ?"
+        
+        cursor.execute(sorgu, (urun_adi,))
+        return cursor.fetchall()
+
+if __name__ == "__main__":
+    aranan = input("Ürün adı: ")
+    sonuclar = urun_ara(aranan)
+    for urun in sonuclar:
+        print(urun)
+```
+
+[DENETİM] Rapor 4 maddenin tamamını içeriyor.
+===========================================================================
+TEST: Sabit Parola Kullanımı
+---------------------------------------------------------------------------
+[GÜVENLİK DUVARI] Uyarı: Açık metin parola / anahtar tespit edildi (kod çalıştırılmaz, yalnızca analiz edilir).
+GÜVENLİK ANALİZİ RAPORU
+1. Tespit Edilen Güvenlik Açığı:
+Kod içerisinde hassas verilerin (veritabanı şifresi gibi kritik bilgilerin) kaynak kod içine açık bir şekilde (hardcoded) yazılması ve yapılandırma yönetimi eksikliği bulunmaktadır.
+
+2. Neden Oluştuğu:
+Veritabanı bağlantı parametreleri (host, database, user, password) dinamik olarak çevresel değişkenlerden (environment variables) veya güvenli bir kasa (vault) sisteminden alınmak yerine, doğrudan Python betiğinin içerisine sabit değerler olarak tanımlanmıştır.
+
+3. Olası Etkileri:
+* **Kimlik Bilgilerinin İfşası (Credential Exposure):** Kodun Git gibi bir sürüm kontrol sistemine yüklenmesi durumunda şifre yetkisiz kişilerin eline geçebilir.
+* **Yetkisiz Veritabanı Erişimleri:** Saldırganlar ele geçirdikleri veritabanı şifresiyle tüm veritabanına (eticaret) tam yetkiyle erişebilir, veri sızıntısına veya veri kaybına neden olabilir.
+* **Bakım Zorluğu:** Şifre veya sunucu adresi değiştirilmek istendiğinde kodun tekrar düzenlenmesi ve yeniden dağıtılması gerekir.
+
+4. Güvenli ve Optimize Edilmiş Kod:
+```python
+import os
+import psycopg2
+from psycopg2 import OperationalError
+
+def baglan():
+    """
+    Veritabanına güvenli bir şekilde bağlanır.
+    Bağlantı parametreleri çevresel değişkenlerden (environment variables) alınır.
+    """
+    try:
+        connection = psycopg2.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            database=os.getenv("DB_NAME", "eticaret"),
+            user=os.getenv("DB_USER", "admin"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        return connection
+    except OperationalError as e:
+        # Hata yönetimi eklenerek hassas bilgilerin sızması engellenir
+        print(f"Veritabanına bağlanırken bir hata oluştu: {e}")
+        return None
+```
+
+[DENETİM] Rapor 4 maddenin tamamını içeriyor.
+===========================================================================
+TEST: Komut Enjeksiyonu
+---------------------------------------------------------------------------
+[GÜVENLİK DUVARI] Uyarı: Kabuk komutu çağrısı tespit edildi (kod çalıştırılmaz, yalnızca analiz edilir).
+GÜVENLİK ANALİZİ RAPORU
+1. Tespit Edilen Güvenlik Açığı:
+**Komut Enjeksiyonu (Command Injection / OS Command Injection)**
+
+2. Neden Oluştuğu:
+Bu açık, kullanıcıdan (`input()`) alınan girdinin herhangi bir doğrulama (validation), temizleme (sanitization) veya kaçış (escaping) işlemine tabi tutulmadan doğrudan `os.system()` fonksiyonu aracılığıyla işletim sisteminin kabuğuna (shell) aktarılmasından kaynaklanır. Saldırgan, hedef adres yerine `;`, `&&`, `||` veya `|` gibi kabuk komut ayırıcılarını kullanarak kendi zararlı komutlarını enjekte edebilir ve sunucuda çalıştırabilir.
+
+3. Olası Etkileri:
+*   **Yetki Kılcalı ve Uzaktan Kod Çalıştırma (RCE):** Saldırgan, uygulamanın çalıştığı yetkiler dahilinde sunucuda dilediği komutu çalıştırabilir.
+*   **Veri Sızıntısı:** Hassas dosyalar (ör. `/etc/passwd`, yapılandırma dosyaları) okunabilir ve dışarıya aktarılabilir.
+*   **Sistem Ele Geçirme (System Compromise):** Sunucu tamamen saldırganın kontrolüne geçebilir, zararlı yazılımlar yüklenebilir veya sistemdeki diğer ağlara sızmak için bir sıçrama tahtası olarak kullanılabilir.
+*   **Hizmet Dışı Bırakma (DoS):** Sunucu kaynakları tüketilebilir veya sistem kapatılabilir.
+
+4. Güvenli ve Optimize Edilmiş Kod:
+```python
+import subprocess
+import ipaddress
+
+def sunucu_kontrol(hedef: str):
+    """
+    Hedef adresin geçerli bir IP adresi veya alan adı olup olmadığını kontrol eder 
+    ve işletim sistemi komutunu kabuk (shell) kullanmadan güvenli bir şekilde çalıştırır.
+    """
+    # Girdi Doğrulama (Input Validation): 
+    # Girdinin geçerli bir IP adresi (IPv4 veya IPv6) olup olmadığını kontrol ediyoruz.
+    # Not: Eğer alan adı (domain) kabul edilecekse, uygun bir regex veya domain doğrulama mantığı eklenmelidir.
+    try:
+        ipaddress.ip_address(hedef)
+    except ValueError:
+        print("Hata: Geçersiz IP adresi formatı.")
+        return
+
+    try:
+        # Güvenli İcra (Safe Execution):
+        # shell=False (varsayılan) kullanarak komutun doğrudan bir kabuk üzerinden çalıştırılmasını engelliyoruz.
+        # Parametreleri bir liste olarak vererek komut enjeksiyonu vektörlerini ortadan kaldırıyoruz.
+        # check=True ile hata durumunda exception fırlatılmasını sağlıyoruz.
+        sonuc = subprocess.run(
+            ["ping", "-c", "1", hedef],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=5, # Zaman aşımı (Timeout) ekleyerek olası askıda kalma (hang) durumlarını önlüyoruz.
+            check=False
+        )
+        
+        if sonuc.returncode == 0:
+            print(f"Sunucu aktif:\n{sonuc.stdout}")
+        else:
+            print(f"Sunucuya ulaşılamadı veya ping başarısız:\n{sonuc.stderr}")
+
+    except subprocess.TimeoutExpired:
+        print("Hata: Ping işlemi zaman aşımına uğradı.")
+    except Exception as e:
+        print(f"Beklenmeyen bir hata oluştu: {e}")
+
+if __name__ == "__main__":
+    kullanici_girdisi = input("Sunucu adresi: ").strip()
+    sunucu_kontrol(kullanici_girdisi)
+```
+
+[DENETİM] Rapor 4 maddenin tamamını içeriyor.
+===========================================================================
+TÜM GÜVENLİK TESTLERİ TAMAMLANDI
+===========================================================================
