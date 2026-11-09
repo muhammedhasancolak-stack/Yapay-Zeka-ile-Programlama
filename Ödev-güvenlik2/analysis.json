@@ -1,0 +1,14 @@
+{
+  "file": "samples/04_path_traversal.py",
+  "finding_count": 1,
+  "findings": [
+    {
+      "type": "Path Traversal (Dizin Atlama)",
+      "severity": "Kritik",
+      "evidence": "with open(BASE_DIR + filename, \"r\", encoding=\"utf-8\") as f:",
+      "cause": "Kullanıcıdan alınan 'filename' girdisi, herhangi bir doğrulama, temizleme (sanitization) veya sınırlandırma yapılmadan doğrudan 'BASE_DIR' dizin yolu ile birleştirilmektedir.",
+      "impact": "Saldırganlar '../' dizin karakterlerini kullanarak temel dizinin dışına çıkabilir, sistemdeki hassas dosyalara (örneğin /etc/passwd gibi) erişebilir veya kaynak kodları okuyabilir.",
+      "secure_code": "import os\n\nBASE_DIR = \"/var/www/uploads/\"\n\ndef dosya_oku(filename):\n    # Güvenli yol oluşturma ve dosyanın BASE_DIR içinde kalmasını sağlama\n    safe_path = os.path.abspath(os.path.join(BASE_DIR, filename))\n    if not safe_path.startswith(os.path.abspath(BASE_DIR)):\n        raise ValueError(\"Geçersiz dosya yolu!\")\n    with open(safe_path, \"r\", encoding=\"utf-8\") as f:\n        return f.read()"
+    }
+  ]
+}
