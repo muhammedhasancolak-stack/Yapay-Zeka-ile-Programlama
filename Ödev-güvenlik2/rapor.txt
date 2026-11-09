@@ -1,0 +1,168 @@
+PS C:\Users\ASUS\Desktop\security_seviye2\security_seviye2> $env:GEMINI_API_KEY="api_anahtarım"
+>> python security_analyzer.py --file samples/04_path_traversal.py
+===========================================================================
+KOD GÜVENLİK ANALİZÖRÜ / SEVİYE 2
+===========================================================================
+Dosya: samples/04_path_traversal.py
+---------------------------------------------------------------------------
+[KRITIK] Path Traversal (Dizin Atlama)
+Kanıt : with open(BASE_DIR + filename, "r", encoding="utf-8") as f:
+Neden : Kullanıcıdan doğrudan alınan dosya adı girdisi (filename), BASE_DIR değişkeni ile güvenli bir doğrulama veya sterilizasyon yapılmadan birleştirilmektedir.
+Etki  : Saldırganlar '../' karakter dizilimlerini kullanarak web root dizini dışındaki hassas sistem dosyalarına (örneğin /etc/passwd) erişebilir ve gizli verileri okuyabilir.
+Öneri (güvenli kod):
+    import os
+    
+    BASE_DIR = "/var/www/uploads/"
+    
+    def dosya_oku(filename):
+        # Girdinin sadece dosya adı olmasını ve BASE_DIR dışına çıkmamasını sağlama
+        safe_path = os.path.abspath(os.path.join(BASE_DIR, filename))
+        if not safe_path.startswith(os.path.abspath(BASE_DIR)):
+            raise ValueError("Geçersiz dosya yolu!")
+        
+        with open(safe_path, "r", encoding="utf-8") as f:
+            return f.read()
+---------------------------------------------------------------------------
+Risk özeti: Kritik 1 | Yüksek 0 | Orta 0 | Düşük 0
+Rapor kaydedildi: reports/analysis.json
+===========================================================================
+PS C:\Users\ASUS\Desktop\security_seviye2\security_seviye2> python security_analyzer.py --all
+===========================================================================
+KOD GÜVENLİK ANALİZÖRÜ / SEVİYE 2
+===========================================================================
+Dosya: samples/01_sql_injection.py
+---------------------------------------------------------------------------
+[KRITIK] SQL Injection
+Kanıt : sorgu = "SELECT * FROM urunler WHERE urun_adi = '" + urun_adi + "'"
+Neden : Kullanıcıdan doğrudan alınan girdinin (input) hiçbir doğrulama veya parametrelendirme yapılmadan doğrudan SQL sorgu stringine birleştirilmesi.
+Etki  : Saldırgan veritabanındaki tüm verileri okuyabilir, değiştirebilir, silebilir veya veritabanı sunucusu üzerinde yetki yükseltme komutları çalıştırabilir.
+Öneri (güvenli kod):
+    def urun_ara(urun_adi):
+        conn = sqlite3.connect("magaza.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM urunler WHERE urun_adi = ?", (urun_adi,))
+        return cursor.fetchall()
+---------------------------------------------------------------------------
+Risk özeti: Kritik 1 | Yüksek 0 | Orta 0 | Düşük 0
+Rapor kaydedildi: reports/analysis_01_sql_injection.json
+===========================================================================
+[GÜVENLİK DUVARI] Uyarı: Açık metin parola / anahtar tespit edildi (kod çalıştırılmaz, yalnızca analiz edilir).
+Dosya: samples/02_sabit_parola.py
+---------------------------------------------------------------------------
+[YÜKSEK] Hassas Bilgilerin Kaynak Kodda Saklanması (Hardcoded Credentials)
+Kanıt : password="8888"
+Neden : Veritabanı bağlantı şifresi gibi kritik kimlik doğrulama bilgileri doğrudan kaynak kodun içine yazılmıştır.
+Etki  : Kaynak kodun yetkisiz kişilerin eline geçmesi veya sürüm kontrol sistemlerinde (örn. Git) sızması durumunda veritabanına doğrudan yetkisiz erişim sağlanabilir.
+Öneri (güvenli kod):
+    import os
+    import psycopg2
+    
+    def baglan():
+        return psycopg2.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            database=os.getenv("DB_NAME", "eticaret"),
+            user=os.getenv("DB_USER", "admin"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+---------------------------------------------------------------------------
+Risk özeti: Kritik 0 | Yüksek 1 | Orta 0 | Düşük 0
+Rapor kaydedildi: reports/analysis_02_sabit_parola.json
+===========================================================================
+[GÜVENLİK DUVARI] Uyarı: Kabuk komutu çağrısı tespit edildi (kod çalıştırılmaz, yalnızca analiz edilir).
+Dosya: samples/03_komut_enjeksiyonu.py
+---------------------------------------------------------------------------
+[KRITIK] Command Injection
+Kanıt : os.system("ping -c 1 " + hedef)
+Neden : Kullanıcıdan gelen girdinin (hedef) herhangi bir doğrulama, filtreleme veya kaçış (escaping) işlemine tabi tutulmadan doğrudan sistem kabuğu komutuna (os.system) eklenmesi.
+Etki  : Saldırgan, hedef değişkeni manipüle ederek sunucuda istenen işletim sistemi komutlarını çalıştırabilir; bu durum tüm sistemin ele geçirilmesine, veri sızıntısına veya hizmet dışı bırakılmasına (DoS) yol açabilir.
+Öneri (güvenli kod):
+    import subprocess
+    
+    def sunucu_kontrol(hedef):
+        # Komut bir dizi olarak verilerek kabuk (shell=True) kullanımından kaçınılır
+        subprocess.run(["ping", "-c", "1", hedef], check=True)
+---------------------------------------------------------------------------
+Risk özeti: Kritik 1 | Yüksek 0 | Orta 0 | Düşük 0
+Rapor kaydedildi: reports/analysis_03_komut_enjeksiyonu.json
+===========================================================================
+Dosya: samples/04_path_traversal.py
+---------------------------------------------------------------------------
+[KRITIK] Path Traversal (Dizin Atlama)
+Kanıt : with open(BASE_DIR + filename, "r", encoding="utf-8") as f:
+Neden : Kullanıcıdan alınan 'filename' girdisi, herhangi bir doğrulama, temizleme veya sınırlandırma yapılmadan doğrudan 'BASE_DIR' yolu ile birleştirilmektedir.
+Etki  : Saldırganlar '../' karakter dizilimini kullanarak sunucu üzerindeki kök dizine erişebilir, sistemdeki hassas dosyaları (örn. /etc/passwd) okuyabilir veya yetkisiz dosya erişimi elde edebilir.
+Öneri (güvenli kod):
+    import os
+    
+    BASE_DIR = "/var/www/uploads/"
+    
+    def dosya_oku(filename):
+        # Dosya adının sadece dosya adı kısmını al ve güvenli yolu oluştur
+        safe_filename = os.path.basename(filename)
+        filepath = os.path.join(BASE_DIR, safe_filename)
+        
+        # Dosyanın gerçekten BASE_DIR içinde olduğunu doğrula
+        if not os.path.commonpath([BASE_DIR, filepath]) == os.path.abspath(BASE_DIR):
+            raise ValueError("Yetkisiz dosya erişim denemesi!")
+            
+        with open(filepath, "r", encoding="utf-8") as f:
+            return f.read()
+---------------------------------------------------------------------------
+Risk özeti: Kritik 1 | Yüksek 0 | Orta 0 | Düşük 0
+Rapor kaydedildi: reports/analysis_04_path_traversal.json
+===========================================================================
+[GÜVENLİK DUVARI] Uyarı: Güvensiz serileştirme (pickle) tespit edildi (kod çalıştırılmaz, yalnızca analiz edilir).
+Dosya: samples/05_guvensiz_serilestirme.py
+---------------------------------------------------------------------------
+[KRITIK] Güvensiz Deserialization (Insecure Deserialization)
+Kanıt : return pickle.loads(gelen_bayt)
+Neden : Python'un 'pickle' modülü, güvenilmeyen kaynaklardan gelen verileri seri durumdan çıkarırken (deserialization) rastgele kod yürütülmesine izin verecek şekilde tasarlanmıştır.
+Etki  : Saldırgan, ağ üzerinden özel olarak hazırlanmış kötü niyetli bir pickle payload'u göndererek hedef sistem üzerinde uzaktan kod yürütme (RCE) yetkisi elde edebilir ve sunucuyu tamamen ele geçirebilir.
+Öneri (güvenli kod):
+    import json
+    
+    def veri_al():
+        sunucu = socket.socket()
+        sunucu.bind(("0.0.0.0", 9000))
+        sunucu.listen(1)
+        baglanti, _ = sunucu.accept()
+        gelen_bayt = baglanti.recv(4096)
+        return json.loads(gelen_bayt.decode('utf-8'))
+---------------------------------------------------------------------------
+Risk özeti: Kritik 1 | Yüksek 0 | Orta 0 | Düşük 0
+Rapor kaydedildi: reports/analysis_05_guvensiz_serilestirme.json
+===========================================================================
+Dosya: samples/06_guvenli_kod.py
+---------------------------------------------------------------------------
+Güvenlik açığı bulunmadı (findings: []).
+Risk özeti: Kritik 0 | Yüksek 0 | Orta 0 | Düşük 0
+Rapor kaydedildi: reports/analysis_06_guvenli_kod.json
+===========================================================================
+GENEL ÖZET
+---------------------------------------------------------------------------
+01_sql_injection.py            1 bulgu
+02_sabit_parola.py             1 bulgu
+03_komut_enjeksiyonu.py        1 bulgu
+04_path_traversal.py           1 bulgu
+05_guvensiz_serilestirme.py    1 bulgu
+06_guvenli_kod.py              0 bulgu
+===========================================================================
+
+
+Yanlış pozitif çıkmadı. Güvenli dosyada bulgu yok, 01–05’in hepsi doğru türde yakalandı.
+
+Path Traversal’ı model “Kritik” verdi, föydeki örnekte “Yüksek”. Risk seviyesi biraz yoruma açık.
+
+İlk Path Traversal önerisi startswith ile kontrol ediyor, bu zayıf bir yöntem. 
+/var/www/uploads_evil gibi bir klasör de bu kontrolü geçer.06_guvenli_kod.py içindeki resolve() + is_relative_to() yaklaşımı daha sağlam. Gemini’nin güvenli kod önerilerini körü körüne kopyalamamak için güzel bir örnek.
+
+
+===================================================================================================================================
+
+
+
+
+
+
+
+
